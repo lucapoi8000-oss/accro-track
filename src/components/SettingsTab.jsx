@@ -1,4 +1,23 @@
+import { useState, useEffect } from 'react';
 import { BeerIcon, WineIcon, CigIcon, DiscoIcon } from './icons';
+
+function PriceInput({ value, defaultValue, onChange, ...props }) {
+  const [local, setLocal] = useState(String(value));
+  useEffect(() => { setLocal(String(value)); }, [value]);
+  return (
+    <input
+      {...props}
+      type="number"
+      value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => {
+        const v = parseFloat(local);
+        onChange(isNaN(v) || v <= 0 ? defaultValue : v);
+        setLocal(String(isNaN(v) || v <= 0 ? defaultValue : v));
+      }}
+    />
+  );
+}
 
 function ThresholdCard({ icon, name, yellowVal, redVal, onYellowChange, onRedChange }) {
   return (
@@ -135,18 +154,18 @@ export default function SettingsTab({ data, update }) {
       <div className="settings-card">
         <div className="settings-row">
           <span className="settings-row-label">Beer price</span>
-          <input type="number" className="settings-input" min="0.1" step="0.1"
-            value={data.settings.beerPrice}
-            onChange={(e) => set('settings.beerPrice', parseFloat(e.target.value) || 0)} />
+          <PriceInput className="settings-input" min="0.1" step="0.1"
+            value={data.settings.beerPrice} defaultValue={4.5}
+            onChange={(v) => set('settings.beerPrice', v)} />
           <span className="settings-unit">€</span>
         </div>
       </div>
       <div className="settings-card">
         <div className="settings-row">
           <span className="settings-row-label">Wine price</span>
-          <input type="number" className="settings-input" min="0.1" step="0.1"
-            value={data.settings.winePrice}
-            onChange={(e) => set('settings.winePrice', parseFloat(e.target.value) || 0)} />
+          <PriceInput className="settings-input" min="0.1" step="0.1"
+            value={data.settings.winePrice} defaultValue={4.5}
+            onChange={(v) => set('settings.winePrice', v)} />
           <span className="settings-unit">€</span>
         </div>
       </div>
