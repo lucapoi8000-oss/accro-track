@@ -137,7 +137,7 @@ export default function SettingsTab({ data, update }) {
           <span className="settings-row-label">Beer price</span>
           <input type="number" className="settings-input" min="0.1" step="0.1"
             value={data.settings.beerPrice}
-            onChange={(e) => set('settings.beerPrice', parseFloat(e.target.value) || 4.5)} />
+            onChange={(e) => set('settings.beerPrice', parseFloat(e.target.value) || 0)} />
           <span className="settings-unit">€</span>
         </div>
       </div>
@@ -146,7 +146,7 @@ export default function SettingsTab({ data, update }) {
           <span className="settings-row-label">Wine price</span>
           <input type="number" className="settings-input" min="0.1" step="0.1"
             value={data.settings.winePrice}
-            onChange={(e) => set('settings.winePrice', parseFloat(e.target.value) || 4.5)} />
+            onChange={(e) => set('settings.winePrice', parseFloat(e.target.value) || 0)} />
           <span className="settings-unit">€</span>
         </div>
       </div>
