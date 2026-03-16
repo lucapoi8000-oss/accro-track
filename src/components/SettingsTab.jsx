@@ -1,20 +1,29 @@
 import { useState, useEffect } from 'react';
 import { BeerIcon, WineIcon, CigIcon, DiscoIcon } from './icons';
 
-function PriceInput({ value, defaultValue, onChange, ...props }) {
+function PriceInput({ value, defaultValue, onChange, className }) {
   const [local, setLocal] = useState(String(value));
-  useEffect(() => { setLocal(String(value)); }, [value]);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => { if (!editing) setLocal(String(value)); }, [value, editing]);
+
+  function commit() {
+    setEditing(false);
+    const v = parseFloat(local.replace(',', '.'));
+    const final = isNaN(v) || v <= 0 ? defaultValue : v;
+    setLocal(String(final));
+    onChange(final);
+  }
+
   return (
     <input
-      {...props}
-      type="number"
+      className={className}
+      type="text"
+      inputMode="decimal"
       value={local}
+      onFocus={(e) => { setEditing(true); e.target.select(); }}
       onChange={(e) => setLocal(e.target.value)}
-      onBlur={() => {
-        const v = parseFloat(local);
-        onChange(isNaN(v) || v <= 0 ? defaultValue : v);
-        setLocal(String(isNaN(v) || v <= 0 ? defaultValue : v));
-      }}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
     />
   );
 }
@@ -154,7 +163,7 @@ export default function SettingsTab({ data, update }) {
       <div className="settings-card">
         <div className="settings-row">
           <span className="settings-row-label">Beer price</span>
-          <PriceInput className="settings-input" min="0.1" step="0.1"
+          <PriceInput className="settings-input"
             value={data.settings.beerPrice} defaultValue={4.5}
             onChange={(v) => set('settings.beerPrice', v)} />
           <span className="settings-unit">€</span>
@@ -163,7 +172,7 @@ export default function SettingsTab({ data, update }) {
       <div className="settings-card">
         <div className="settings-row">
           <span className="settings-row-label">Wine price</span>
-          <PriceInput className="settings-input" min="0.1" step="0.1"
+          <PriceInput className="settings-input"
             value={data.settings.winePrice} defaultValue={4.5}
             onChange={(v) => set('settings.winePrice', v)} />
           <span className="settings-unit">€</span>
