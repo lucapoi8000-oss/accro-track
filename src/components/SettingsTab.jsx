@@ -31,11 +31,26 @@ export default function SettingsTab({ data, update }) {
       const next = JSON.parse(JSON.stringify(d));
       const keys = path.split('.');
       let obj = next;
-      for (let i = 0; i < keys.length - 1; i++) obj = obj[keys[i]];
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!obj[keys[i]]) obj[keys[i]] = {};
+        obj = obj[keys[i]];
+      }
       obj[keys[keys.length - 1]] = value;
       return next;
     });
   }
+
+  function exportData() {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `accro-track-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const budgets = data.settings?.weeklyBudgets || { beer: 30, wine: 30, cigs: 20, disco: 50 };
 
   return (
     <div className="tab-content active">
@@ -75,6 +90,46 @@ export default function SettingsTab({ data, update }) {
         onYellowChange={(v) => set('thresholds.disco.yellow', v)}
         onRedChange={(v) => set('thresholds.disco.red', v)} />
 
+      <div className="section-label" style={{ color: '#AAA' }}>Weekly Budgets</div>
+      <p style={{ fontSize: 12, color: '#555', marginBottom: 12 }}>
+        Set your weekly spending limits per category.
+      </p>
+
+      <div className="settings-card">
+        <div className="settings-row" style={{ marginBottom: 12 }}>
+          <BeerIcon color="#E67E22" />
+          <span className="settings-row-label">Beer</span>
+          <input type="number" className="settings-input" min="0" step="5"
+            value={budgets.beer}
+            onChange={(e) => set('settings.weeklyBudgets.beer', parseFloat(e.target.value) || 0)} />
+          <span className="settings-unit">€</span>
+        </div>
+        <div className="settings-row" style={{ marginBottom: 12 }}>
+          <WineIcon color="#C0392B" />
+          <span className="settings-row-label">Wine</span>
+          <input type="number" className="settings-input" min="0" step="5"
+            value={budgets.wine}
+            onChange={(e) => set('settings.weeklyBudgets.wine', parseFloat(e.target.value) || 0)} />
+          <span className="settings-unit">€</span>
+        </div>
+        <div className="settings-row" style={{ marginBottom: 12 }}>
+          <CigIcon color="#E74C3C" />
+          <span className="settings-row-label">Cigarettes</span>
+          <input type="number" className="settings-input" min="0" step="5"
+            value={budgets.cigs}
+            onChange={(e) => set('settings.weeklyBudgets.cigs', parseFloat(e.target.value) || 0)} />
+          <span className="settings-unit">€</span>
+        </div>
+        <div className="settings-row">
+          <DiscoIcon color="#9B59B6" />
+          <span className="settings-row-label">Disco / Clubs</span>
+          <input type="number" className="settings-input" min="0" step="5"
+            value={budgets.disco}
+            onChange={(e) => set('settings.weeklyBudgets.disco', parseFloat(e.target.value) || 0)} />
+          <span className="settings-unit">€</span>
+        </div>
+      </div>
+
       <div className="section-label" style={{ color: '#AAA' }}>Bucket List Prices</div>
 
       <div className="settings-card">
@@ -96,10 +151,23 @@ export default function SettingsTab({ data, update }) {
         </div>
       </div>
 
+      <div className="section-label" style={{ color: '#AAA' }}>Data</div>
+
+      <div className="settings-card">
+        <button className="export-btn" onClick={exportData}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 8, verticalAlign: -2 }}>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Export Data as JSON
+        </button>
+      </div>
+
       <div className="about-block">
         <div className="about-logo">Accro <span>Track</span><span className="about-tm">™</span></div>
         <div className="about-author">by Lorenzo Aloe</div>
-        <div className="about-version">Version 1.0</div>
+        <div className="about-version">Version 1.1</div>
       </div>
     </div>
   );

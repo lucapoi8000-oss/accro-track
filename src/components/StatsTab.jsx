@@ -5,16 +5,87 @@ const CHART_COLORS = { beer: '#E67E22', wine: '#C0392B', cigs: '#E74C3C', disco:
 const CHART_LABELS = { beer: 'Beer', wine: 'Wine', cigs: 'Cigarettes', disco: 'Disco / Clubs' };
 const CATS = ['beer', 'wine', 'cigs', 'disco'];
 
+function getDaysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().split('T')[0];
+}
+
+function getMonthLabel(monthStr) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const idx = parseInt(monthStr.split('-')[1], 10) - 1;
+  return months[idx];
+}
+
+function getMondayOf(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(d.getFullYear(), d.getMonth(), diff).toISOString().split('T')[0];
+}
+
+function aggregateByWeek(log) {
+  const weeks = {};
+  log.forEach(entry => {
+    const monday = getMondayOf(entry.date);
+    if (!weeks[monday]) weeks[monday] = { date: monday, beer: 0, wine: 0, cigs: 0, disco: 0 };
+    CATS.forEach(c => { weeks[monday][c] += entry[c] || 0; });
+  });
+  return Object.values(weeks).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function aggregateByMonth(log) {
+  const months = {};
+  log.forEach(entry => {
+    const month = entry.date.slice(0, 7);
+    if (!months[month]) months[month] = { date: month, beer: 0, wine: 0, cigs: 0, disco: 0 };
+    CATS.forEach(c => { months[month][c] += entry[c] || 0; });
+  });
+  return Object.values(months).sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export default function StatsTab({ data, update }) {
   const [selectedCat, setSelectedCat] = useState('beer');
+  const [timeRange, setTimeRange] = useState('daily');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const timelineRef = useRef(null);
   const pieRef = useRef(null);
 
+  function getFilteredLog() {
+    const log = data.expenseLog || [];
+    if (timeRange === 'daily') {
+      const cutoff = getDaysAgo(7);
+      return log.filter(e => e.date >= cutoff);
+    }
+    if (timeRange === 'weekly') {
+      const cutoff = getDaysAgo(30);
+      return log.filter(e => e.date >= cutoff);
+    }
+    return log;
+  }
+
+  function getChartData() {
+    const filtered = getFilteredLog();
+    if (timeRange === 'daily') {
+      return [...filtered].sort((a, b) => a.date.localeCompare(b.date));
+    }
+    if (timeRange === 'weekly') {
+      return aggregateByWeek(filtered);
+    }
+    return aggregateByMonth(filtered);
+  }
+
+  function getChartLabels(chartData) {
+    return chartData.map(entry => {
+      if (timeRange === 'monthly') return getMonthLabel(entry.date);
+      return entry.date.slice(5);
+    });
+  }
+
   useEffect(() => {
     drawTimeline();
     drawPie();
-  }, [data, selectedCat]);
+  }, [data, selectedCat, timeRange]);
 
   function drawTimeline() {
     const canvas = timelineRef.current;
@@ -27,19 +98,18 @@ export default function StatsTab({ data, update }) {
     canvas.style.height = rect.width * 0.5 + 'px';
     ctx.scale(dpr, dpr);
     const W = rect.width, H = rect.width * 0.5;
-    const log = data.expenseLog || [];
+    const chartData = getChartData();
     const cat = selectedCat;
     const color = CHART_COLORS[cat];
     ctx.clearRect(0, 0, W, H);
 
-    if (log.length === 0) return;
+    if (chartData.length === 0) return;
 
-    const sorted = [...log].sort((a, b) => a.date.localeCompare(b.date));
-    let cumValues = [], labels = [], cumTotal = 0;
-    sorted.forEach((entry) => {
+    const labels = getChartLabels(chartData);
+    let cumValues = [], cumTotal = 0;
+    chartData.forEach((entry) => {
       cumTotal += entry[cat] || 0;
       cumValues.push(cumTotal);
-      labels.push(entry.date.slice(5));
     });
 
     const maxVal = Math.max(...cumValues, 1);
@@ -114,9 +184,9 @@ export default function StatsTab({ data, update }) {
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, size, size);
 
-    const log = data.expenseLog || [];
+    const filtered = getFilteredLog();
     const totals = { beer: 0, wine: 0, cigs: 0, disco: 0 };
-    log.forEach((e) => { CATS.forEach((c) => { totals[c] += e[c] || 0; }); });
+    filtered.forEach((e) => { CATS.forEach((c) => { totals[c] += e[c] || 0; }); });
     const sum = CATS.reduce((s, c) => s + totals[c], 0);
     if (sum === 0) return;
 
@@ -151,14 +221,25 @@ export default function StatsTab({ data, update }) {
     ctx.fillText('TOTAL', cx, cy + 12);
   }
 
-  const log = data.expenseLog || [];
+  const filtered = getFilteredLog();
   const totals = { beer: 0, wine: 0, cigs: 0, disco: 0 };
-  log.forEach((e) => { CATS.forEach((c) => { totals[c] += e[c] || 0; }); });
+  filtered.forEach((e) => { CATS.forEach((c) => { totals[c] += e[c] || 0; }); });
   const sum = CATS.reduce((s, c) => s + totals[c], 0);
   const slices = CATS.filter((k) => totals[k] > 0);
+  const rangeLabel = timeRange === 'daily' ? 'Last 7 days' : timeRange === 'weekly' ? 'Last 30 days' : 'All time';
 
   return (
     <div className="tab-content active">
+      <div className="time-range-pills">
+        {['daily', 'weekly', 'monthly'].map(r => (
+          <button key={r} className={`time-pill${timeRange === r ? ' active' : ''}`}
+            onClick={() => setTimeRange(r)}>
+            {r === 'daily' ? 'Daily' : r === 'weekly' ? 'Weekly' : 'Monthly'}
+          </button>
+        ))}
+        <span className="time-range-label">{rangeLabel}</span>
+      </div>
+
       <div className="section-label" style={{ color: '#9B59B6' }}>Expense Timeline</div>
 
       <div className="chart-card">
@@ -176,7 +257,7 @@ export default function StatsTab({ data, update }) {
         <div className="chart-canvas-wrap">
           <canvas ref={timelineRef} />
         </div>
-        {log.length === 0 && <div className="stats-empty">Log expenses to see your timeline.</div>}
+        {filtered.length === 0 && <div className="stats-empty">Log expenses to see your timeline.</div>}
       </div>
 
       <div className="section-label" style={{ color: '#9B59B6' }}>Expense Breakdown</div>

@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { WineIcon, BeerIcon, CigIcon, PeopleIcon, CigPackIcon, DiscoIcon } from './icons';
 import AmountPicker from './AmountPicker';
 import ConfirmDialog from './ConfirmDialog';
+import { getMonday } from '../hooks/useStore';
 
-function CounterCard({ icon, label, value, onInc, onDec }) {
+function CounterCard({ icon, label, value, todayValue, onInc, onDec }) {
   const valRef = useRef(null);
   function pop() {
     const el = valRef.current;
@@ -18,6 +19,9 @@ function CounterCard({ icon, label, value, onInc, onDec }) {
       <div className="counter-info">
         <div className="counter-label">{label}</div>
         <div className="counter-value" ref={valRef}>{value}</div>
+        {todayValue > 0 && (
+          <div className="counter-today">Today: <span>{todayValue}</span></div>
+        )}
       </div>
       <div className="counter-buttons">
         <button className="counter-btn minus" onClick={() => { onDec(); pop(); }}>−</button>
@@ -61,15 +65,71 @@ function ExpenseCard({ icon, label, value, colorClass, onPlus, onMinus }) {
   );
 }
 
+function BudgetBar({ icon, label, spent, budget, color }) {
+  const pct = budget > 0 ? Math.min(100, (spent / budget) * 100) : 0;
+  const barColor = pct >= 100 ? '#E74C3C' : pct >= 75 ? '#F1C40F' : '#27AE60';
+  return (
+    <div className="card budget-card">
+      <div className="budget-header">
+        <div className="counter-icon" style={{ background: color + '22' }}>{icon}</div>
+        <div className="budget-info">
+          <div className="budget-label">{label}</div>
+          <div className="budget-amounts">
+            <span style={{ color: barColor }}>€{spent.toFixed(0)}</span>
+            <span className="budget-separator">/</span>
+            <span className="budget-total">€{budget}</span>
+          </div>
+        </div>
+        <div className="budget-pct" style={{ color: barColor }}>{Math.round(pct)}%</div>
+      </div>
+      <div className="budget-bar-track">
+        <div className="budget-bar-fill" style={{ width: `${pct}%`, background: barColor }} />
+      </div>
+    </div>
+  );
+}
+
 export default function AddictionsTab({ data, update }) {
   const [picker, setPicker] = useState({ open: false, cat: null, mode: null });
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  // Reset today's counters if date changed
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    if (data.countersDate !== today) {
+      update((d) => ({
+        ...d,
+        countersToday: { wine: 0, beer: 0, cigs: 0, ons: 0 },
+        countersDate: today,
+      }));
+    }
+  }, []);
+
+  // Reset weekly spending if week changed
+  useEffect(() => {
+    const monday = getMonday();
+    if (data.weeklySpending?.weekOf !== monday) {
+      update((d) => ({
+        ...d,
+        weeklySpending: { weekOf: monday, beer: 0, wine: 0, cigs: 0, disco: 0 },
+      }));
+    }
+  }, []);
+
   function changeCounter(key, delta) {
-    update((d) => ({
-      ...d,
-      counters: { ...d.counters, [key]: Math.max(0, (d.counters[key] || 0) + delta) },
-    }));
+    const today = new Date().toISOString().split('T')[0];
+    update((d) => {
+      const ct = d.countersDate === today
+        ? { ...d.countersToday }
+        : { wine: 0, beer: 0, cigs: 0, ons: 0 };
+      ct[key] = Math.max(0, (ct[key] || 0) + delta);
+      return {
+        ...d,
+        counters: { ...d.counters, [key]: Math.max(0, (d.counters[key] || 0) + delta) },
+        countersToday: ct,
+        countersDate: today,
+      };
+    });
     if (navigator.vibrate) navigator.vibrate(delta > 0 ? 15 : 8);
   }
 
@@ -79,10 +139,20 @@ export default function AddictionsTab({ data, update }) {
       const today = new Date().toISOString().split('T')[0];
       const log = [...d.expenseLog];
       const idx = log.findIndex((e) => e.date === today);
-      const entry = { date: today, beer: newMoney.beer, wine: newMoney.wine, cigs: newMoney.cigs, disco: newMoney.disco };
-      if (idx >= 0) log[idx] = entry;
-      else log.push(entry);
-      return { ...d, money: newMoney, expenseLog: log.slice(-90) };
+      if (idx >= 0) {
+        log[idx] = { ...log[idx], [cat]: Math.max(0, (log[idx][cat] || 0) + delta) };
+      } else {
+        log.push({ date: today, beer: 0, wine: 0, cigs: 0, disco: 0, [cat]: Math.max(0, delta) });
+      }
+
+      // Weekly spending
+      const monday = getMonday();
+      let ws = d.weeklySpending && d.weeklySpending.weekOf === monday
+        ? { ...d.weeklySpending }
+        : { weekOf: monday, beer: 0, wine: 0, cigs: 0, disco: 0 };
+      ws[cat] = Math.max(0, (ws[cat] || 0) + delta);
+
+      return { ...d, money: newMoney, expenseLog: log.slice(-90), weeklySpending: ws };
     });
     if (navigator.vibrate) navigator.vibrate(delta > 0 ? 15 : 8);
   }
@@ -91,24 +161,37 @@ export default function AddictionsTab({ data, update }) {
     update((d) => ({
       ...d,
       counters: { wine: 0, beer: 0, cigs: 0, ons: 0 },
+      countersToday: { wine: 0, beer: 0, cigs: 0, ons: 0 },
+      countersDate: new Date().toISOString().split('T')[0],
       money: { beer: 0, wine: 0, cigs: 0, disco: 0 },
+      weeklySpending: { weekOf: getMonday(), beer: 0, wine: 0, cigs: 0, disco: 0 },
     }));
     setConfirmOpen(false);
   }
 
   const total = (data.money.beer || 0) + (data.money.wine || 0) + (data.money.cigs || 0) + (data.money.disco || 0);
+  const ws = data.weeklySpending || { beer: 0, wine: 0, cigs: 0, disco: 0 };
+  const budgets = data.settings?.weeklyBudgets || { beer: 30, wine: 30, cigs: 20, disco: 50 };
+  const today = new Date().toISOString().split('T')[0];
+  const todayCounters = data.countersDate === today
+    ? (data.countersToday || {})
+    : { wine: 0, beer: 0, cigs: 0, ons: 0 };
 
   return (
     <div className="tab-content active">
       <div className="section-label red">Counters</div>
 
       <CounterCard icon={<WineIcon />} label="Glasses of Wine" value={data.counters.wine}
+        todayValue={todayCounters.wine || 0}
         onInc={() => changeCounter('wine', 1)} onDec={() => changeCounter('wine', -1)} />
       <CounterCard icon={<BeerIcon />} label="Beers" value={data.counters.beer}
+        todayValue={todayCounters.beer || 0}
         onInc={() => changeCounter('beer', 1)} onDec={() => changeCounter('beer', -1)} />
       <CounterCard icon={<CigIcon />} label="Cigarettes" value={data.counters.cigs}
+        todayValue={todayCounters.cigs || 0}
         onInc={() => changeCounter('cigs', 1)} onDec={() => changeCounter('cigs', -1)} />
       <CounterCard icon={<PeopleIcon />} label="One Night Stands" value={data.counters.ons}
+        todayValue={todayCounters.ons || 0}
         onInc={() => changeCounter('ons', 1)} onDec={() => changeCounter('ons', -1)} />
 
       <div className="section-label red">Expenses</div>
@@ -134,6 +217,13 @@ export default function AddictionsTab({ data, update }) {
         <div className="total-label">Total Spent</div>
         <div className="total-value">€{total}</div>
       </div>
+
+      <div className="section-label red">Weekly Budget</div>
+
+      <BudgetBar icon={<BeerIcon color="#E67E22" />} label="Beer" spent={ws.beer || 0} budget={budgets.beer} color="#E67E22" />
+      <BudgetBar icon={<WineIcon color="#C0392B" />} label="Wine" spent={ws.wine || 0} budget={budgets.wine} color="#C0392B" />
+      <BudgetBar icon={<CigIcon color="#E74C3C" />} label="Cigarettes" spent={ws.cigs || 0} budget={budgets.cigs} color="#E74C3C" />
+      <BudgetBar icon={<DiscoIcon color="#9B59B6" />} label="Disco / Clubs" spent={ws.disco || 0} budget={budgets.disco} color="#9B59B6" />
 
       <div className="reset-section-wrap">
         <button className="reset-section-btn" onClick={() => setConfirmOpen(true)}>Reset Addictions</button>

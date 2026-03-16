@@ -324,6 +324,46 @@ body {
 .dialog-btn.cancel { background: #222; color: #AAA; }
 .dialog-btn.confirm { background: #C0392B; color: white; }
 
+/* Today counter badge */
+.counter-today { font-size: 11px; color: #555; font-weight: 500; margin-top: 2px; }
+.counter-today span { color: #AAA; font-weight: 600; }
+
+/* Budget progress bars */
+.budget-card { padding: 14px 16px; }
+.budget-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.budget-info { flex: 1; min-width: 0; }
+.budget-label { font-size: 12px; font-weight: 500; color: #888; margin-bottom: 2px; }
+.budget-amounts { font-size: 15px; font-weight: 700; }
+.budget-separator { color: #444; margin: 0 4px; font-weight: 400; }
+.budget-total { color: #555; }
+.budget-pct { font-size: 18px; font-weight: 700; flex-shrink: 0; }
+.budget-bar-track { height: 6px; background: #2A2A2A; border-radius: 3px; overflow: hidden; }
+.budget-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+
+/* Time range pills */
+.time-range-pills { display: flex; gap: 6px; margin-bottom: 4px; align-items: center; }
+.time-pill {
+  padding: 7px 14px; border-radius: 20px; border: 1.5px solid #2A2A2A;
+  background: transparent; color: #666; font-family: 'Inter', sans-serif;
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s ease;
+}
+.time-pill.active { border-color: #9B59B6; color: #9B59B6; background: rgba(155,89,182,0.1); }
+.time-pill:active { transform: scale(0.94); }
+.time-range-label { font-size: 11px; color: #444; margin-left: auto; }
+
+/* Export button */
+.export-btn {
+  width: 100%; padding: 12px; border-radius: 12px;
+  border: 1.5px solid rgba(52,152,219,0.3); background: rgba(52,152,219,0.08);
+  color: #3498DB; font-family: 'Inter', sans-serif; font-size: 13px;
+  font-weight: 600; cursor: pointer; transition: all 0.15s ease;
+  display: flex; align-items: center; justify-content: center;
+}
+.export-btn:active { transform: scale(0.97); background: rgba(52,152,219,0.2); }
+
+/* Settings row icon */
+.settings-row svg { width: 18px; height: 18px; flex-shrink: 0; }
+
 ::-webkit-scrollbar { width: 0; }
 
 @media (min-width: 600px) {
